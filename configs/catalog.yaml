@@ -1,0 +1,153 @@
+# SkillFusion catalog — the single source of truth the agent is allowed to pick from.
+# Nemotron never invents asset paths or task ids; it selects entries from this file.
+# Object pose = [x, y, yaw_deg] in the world; objects stand on the floor; +x of an object is its "front".
+# Poses: metres, yaw in degrees. Quaternions (when needed) are Isaac Lab 3.0 order (x, y, z, w).
+
+version: 1
+
+# ---------------------------------------------------------------------------------------------
+# Workcell: the robot + table + blocks. Training AND demo use the same workcell at the env
+# origin; "place the robot beside the shelf" is achieved by moving the *environment* around the
+# workcell. This keeps every trained policy valid in every scene (obs are in the robot base frame).
+# ---------------------------------------------------------------------------------------------
+workcell:
+  floor_z: -1.05            # ground height relative to table top in Isaac Lab's manipulation tasks
+  footprint:                # 2D rectangle (robot base frame) the workcell occupies: robot + table
+    x_min: -0.35
+    x_max: 1.10
+    y_min: -0.55
+    y_max: 0.55
+  table_top_z: 0.0
+  regions:                  # named regions on the table, robot base frame
+    A: {center: [0.50, 0.20, 0.03], half_extent: [0.08, 0.08, 0.0]}
+    B: {center: [0.50, -0.20, 0.03], half_extent: [0.08, 0.08, 0.0]}
+    C: {center: [0.65, 0.00, 0.03], half_extent: [0.06, 0.10, 0.0]}
+    home: {center: [0.40, 0.00, 0.35], half_extent: [0.0, 0.0, 0.0]}
+
+robots:
+  franka:
+    aliases: [franka, panda, franka panda, franka emika, fr3]
+    isaaclab_cfg: "isaaclab_assets.robots.franka:FRANKA_PANDA_HIGH_PD_CFG"
+    ee_body: panda_hand
+    ee_offset: [0.0, 0.0, 0.107]
+    dof: 7
+    wrist_camera:
+      mount_body: panda_hand
+      offset_pos: [0.05, 0.0, 0.04]     # on the palm side of the hand; verify in viser, tune once
+      offset_rot_xyzw: [0.0, 0.0, 0.0, 1.0]   # ROS optical axis == panda_hand +z (towards the fingertips)
+      convention: ros
+    status: ready
+  wxai:
+    aliases: [trossen, widowx, widowx ai, wxai, trossen arm, trossen widowx]
+    # From TrossenRobotics/trossen_ai_isaac (built for Isaac Lab 2.3). Needs a 3.0 port:
+    # quaternions -> xyzw, write_*_to_sim -> *_index, data -> .torch. See docs/PORTING_TROSSEN.md.
+    isaaclab_cfg: "trossen_ai_isaac.assets.robots.wxai:WXAI_CFG"
+    ee_body: ee_gripper_link          # check body names with scripts/inspect_robot.py
+    ee_offset: [0.0, 0.0, 0.0]
+    dof: 6
+    wrist_camera:
+      mount_body: ee_gripper_link
+      offset_pos: [0.03, 0.0, 0.03]
+      offset_rot_xyzw: [0.0, 0.0, 0.0, 1.0]
+      convention: ros
+    status: needs_port
+
+# ---------------------------------------------------------------------------------------------
+# Environments are built from primitive shapes so they (a) render in the Newton/viser stack on a
+# non-RTX GPU, (b) cost almost no VRAM, (c) give the agent exact anchor geometry for placement.
+# An optional USD background can be layered on when an RTX renderer is available.
+# ---------------------------------------------------------------------------------------------
+environments:
+  warehouse:
+    aliases: [warehouse, ware house, storage, depot]
+    floor_color: [0.35, 0.35, 0.38]
+    usd_background: "Environments/Simple_Warehouse/warehouse.usd"   # only used with --rtx
+    objects:
+      shelf:        {size: [0.6, 2.4, 2.0], pose: [0.0, 0.0, 0.0],   color: [0.15, 0.30, 0.65], anchor: true, aliases: [rack, shelves, shelving]}
+      shelf_2:      {size: [0.6, 2.4, 2.0], pose: [0.0, 4.0, 0.0],   color: [0.15, 0.30, 0.65], anchor: true, aliases: [second shelf, other rack]}
+      pallet:       {size: [1.2, 1.0, 0.15], pose: [3.0, -2.0, 0.0], color: [0.55, 0.40, 0.22], anchor: true, aliases: [pallets, wooden pallet]}
+      conveyor:     {size: [3.0, 0.6, 0.8], pose: [3.5, 2.0, 90.0],  color: [0.25, 0.25, 0.25], anchor: true, aliases: [belt, conveyor belt], surface: true}
+      crate_stack:  {size: [0.8, 0.8, 1.2], pose: [-2.5, -3.0, 0.0], color: [0.60, 0.45, 0.25], anchor: true, aliases: [boxes, crates]}
+  kitchen:
+    aliases: [kitchen, cafeteria, home kitchen]
+    floor_color: [0.80, 0.78, 0.72]
+    usd_background: null
+    objects:
+      counter:      {size: [2.5, 0.65, 0.9], pose: [0.0, 0.0, 0.0],  color: [0.90, 0.90, 0.88], anchor: true, aliases: [countertop, kitchen counter], surface: true}
+      fridge:       {size: [0.8, 0.75, 1.9], pose: [2.0, 0.0, 0.0],  color: [0.85, 0.87, 0.90], anchor: true, aliases: [refrigerator]}
+      island:       {size: [1.6, 0.9, 0.9], pose: [0.0, 2.5, 0.0],   color: [0.55, 0.35, 0.25], anchor: true, aliases: [kitchen island], surface: true}
+      cabinet:      {size: [0.6, 0.8, 0.9], pose: [-2.0, 0.0, 0.0],  color: [0.70, 0.60, 0.45], anchor: true, aliases: [drawer, drawers, cupboard]}
+  lab:
+    aliases: [lab, laboratory, workshop, robotics lab]
+    floor_color: [0.60, 0.62, 0.65]
+    usd_background: "Environments/Simple_Room/simple_room.usd"
+    objects:
+      workbench:    {size: [1.8, 0.8, 0.9], pose: [0.0, 0.0, 0.0],   color: [0.40, 0.40, 0.45], anchor: true, aliases: [bench, work bench, desk], surface: true}
+      tool_rack:    {size: [0.4, 1.5, 1.8], pose: [2.0, 0.0, 0.0],   color: [0.20, 0.20, 0.22], anchor: true, aliases: [rack, tool wall]}
+      cart:         {size: [0.9, 0.6, 1.0], pose: [0.0, 2.2, 0.0],   color: [0.70, 0.10, 0.10], anchor: true, aliases: [trolley]}
+
+# Things that can be spawned on the workcell table.
+props:
+  red_block:   {kind: cube, size: 0.05, color: [0.85, 0.10, 0.10], mass: 0.1, aliases: [red cube, red block]}
+  blue_block:  {kind: cube, size: 0.05, color: [0.10, 0.25, 0.85], mass: 0.1, aliases: [blue cube, blue block]}
+  green_block: {kind: cube, size: 0.05, color: [0.10, 0.70, 0.20], mass: 0.1, aliases: [green cube, green block]}
+  box:         {kind: cuboid, size: [0.12, 0.08, 0.06], color: [0.60, 0.45, 0.25], mass: 0.2, aliases: [small box, parcel, package]}
+
+# ---------------------------------------------------------------------------------------------
+# Skill library. `index` is global and must never be reused: it indexes the shared skill
+# embedding inside the federated core, so every client must agree on it.
+# base_task: Isaac Lab task id the skill is derived from (run scripts/list_tasks.py to confirm
+# the ids registered in YOUR install — ids moved between 2.x and 3.0 in a few places).
+# ---------------------------------------------------------------------------------------------
+skills:
+  reach:
+    index: 0
+    description: Move the end-effector to a target pose. Used for pre-grasp, home, and handoffs.
+    params: [goal]
+    base_task: {franka: Isaac-Reach-Franka-IK-Rel-v0, wxai: Isaac-Reach-WXAI-IK-Rel-v0}
+    patch: "skillfusion_lab.tasks.patches:patch_reach"
+    status: ready
+  pick_place:
+    index: 1
+    description: Grasp one object and put it down at a goal position on the table, then release.
+    params: [object, goal]
+    base_task: {franka: Isaac-Lift-Cube-Franka-IK-Rel-v0, wxai: Isaac-Lift-Cube-WXAI-v0}
+    patch: "skillfusion_lab.tasks.patches:patch_pick_place"
+    status: ready
+  lift:
+    index: 2
+    description: Grasp an object and lift it to a hover height.
+    params: [object]
+    base_task: {franka: Isaac-Lift-Cube-Franka-IK-Rel-v0, wxai: Isaac-Lift-Cube-WXAI-v0}
+    patch: "skillfusion_lab.tasks.patches:patch_lift"
+    status: ready
+  push:
+    index: 3
+    description: Push an object along the table to a goal position without grasping.
+    params: [object, goal]
+    base_task: {franka: Isaac-Lift-Cube-Franka-IK-Rel-v0}
+    patch: "skillfusion_lab.tasks.patches:patch_push"
+    status: ready
+  open_drawer:
+    index: 4
+    description: Grasp a drawer handle and pull the drawer open.
+    params: []
+    base_task: {franka: Isaac-Open-Drawer-Franka-IK-Rel-v0, wxai: Isaac-Open-Drawer-WXAI-v0}
+    patch: "skillfusion_lab.tasks.patches:patch_open_drawer"
+    status: ready
+  throw:
+    index: 5
+    description: Release a held object with velocity so it lands in a target zone.
+    params: [object, goal]
+    base_task: {franka: Isaac-Lift-Cube-Franka-IK-Rel-v0}
+    patch: null          # to be generated by the agent (codegen) — stretch goal
+    status: stretch
+  catch:
+    index: 6
+    description: Intercept and grasp an object thrown toward the robot.
+    params: [object]
+    base_task: {franka: Isaac-Lift-Cube-Franka-IK-Rel-v0}
+    patch: null
+    status: stretch
+
+max_skills: 16   # size of the skill-embedding table in the federated core (leave headroom)
