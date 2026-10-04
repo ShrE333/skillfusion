@@ -1,0 +1,19 @@
+[project]
+name = "skillfusion"
+version = "0.1.0"
+description = "Voice-driven robot agent (Nemotron) + federated fusion of RL skill policies on Isaac Lab 3.0"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["numpy", "pyyaml", "httpx"]
+
+[project.optional-dependencies]
+sim = ["torch"]            # Isaac Lab / Isaac Sim are installed separately (see docs/SETUP.md)
+fl = ["nvflare>=2.7"]
+voice = ["nemo_toolkit[asr]", "sounddevice"]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["skillfusion*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
